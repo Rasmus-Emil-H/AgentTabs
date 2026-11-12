@@ -5,6 +5,9 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
     let dir: URL
     let tabs = NSTabView()
     var onClose: ((Session) -> Void)?
+    // Terminal tabs prefer fish (autosuggestions, completions, history out of the box); agents run via $SHELL.
+    static let terminalShell = ["/opt/homebrew/bin/fish", "/usr/local/bin/fish"].first { FileManager.default.isExecutableFile(atPath: $0) }
+        ?? ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
 
     init(dir: URL, command: String) {
         self.dir = dir
@@ -16,7 +19,12 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
         super.init(window: window)
         window.delegate = self
         addTerminal(label: command, command: command)
+        addShell()
+        tabs.selectTabViewItem(at: 0)
+        window.makeFirstResponder(tabs.tabViewItem(at: 0).view)
     }
+
+    func addShell() { addTerminal(label: (Session.terminalShell as NSString).lastPathComponent) }
 
     required init?(coder: NSCoder) { fatalError() }
 
@@ -28,7 +36,7 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
         env["TERM"] = "xterm-256color"
         env["COLORTERM"] = "truecolor"
         env.removeValue(forKey: "CLAUDECODE")
-        let shell = env["SHELL"] ?? "/bin/zsh"
+        let shell = command == nil ? Session.terminalShell : env["SHELL"] ?? "/bin/zsh"
         let args = command.map { ["-l", "-i", "-c", "exec \($0)"] } ?? ["-l"]
         term.startProcess(executable: shell, args: args, environment: env.map { "\($0)=\($1)" },
                           execName: "-" + (shell as NSString).lastPathComponent, currentDirectory: dir.path)
@@ -111,7 +119,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let alert = NSAlert()
         alert.messageText = "AgentTabs"
         alert.informativeText = """
-        Each top tab is one agent session in a folder. Inside it, extra tabs are terminals in the same folder.
+        Each top tab is one agent session in a folder. Inside it, a terminal tab (fish if installed) opens in the same folder.
 
         ⌘N          New agent session (pick folder + agent)
         ⌃N          New terminal in this session
@@ -173,7 +181,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     var current: Session? { sessions.first { $0.window === NSApp.keyWindow } }
 
     @objc func newTerminal(_ sender: Any?) {
-        current?.addTerminal(label: (ProcessInfo.processInfo.environment["SHELL"] as NSString?)?.lastPathComponent ?? "zsh")
+        current?.addShell()
     }
 
     @objc func closeInner(_ sender: Any?) {

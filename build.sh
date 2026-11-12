@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 cd "$(dirname "$0")"
+# Terminal tabs use fish (autosuggestions, completions, history); falls back to $SHELL without it.
+command -v fish >/dev/null || ! command -v brew >/dev/null || brew install fish
 swift build -c release
 APP=AgentTabs.app
 mkdir -p $APP/Contents/MacOS
