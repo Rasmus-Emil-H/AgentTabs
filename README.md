@@ -1,8 +1,12 @@
 # AgentTabs
 
+<<<<<<< HEAD
 ![icon](icon.png)
 
 A tiny native macOS app for running coding agents side by side. Each top tab is one agent session (Claude Code, Codex, Gemini, opencode, aider, … or any command) in a folder; inside it, a terminal tab opens alongside the agent in that same folder (fish, which `build.sh` installs via Homebrew; falls back to your `$SHELL`).
+=======
+A tiny native macOS app for running coding agents side by side. Each top tab is one agent session (Claude Code, Codex, Gemini, opencode, aider, … or any command) in a folder; inside it, extra tabs are terminals in that same folder.
+>>>>>>> f9b57f6411a8e3f688c29c118ef0f0d16a1918e1
 
 ## Install
 
