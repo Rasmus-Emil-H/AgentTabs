@@ -37,8 +37,8 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
         env["COLORTERM"] = "truecolor"
         env.removeValue(forKey: "CLAUDECODE")
         let shell = command == nil ? Session.terminalShell : env["SHELL"] ?? "/bin/zsh"
-        // fish doesn't read ~/.zshrc: pull the zsh aliases in so they keep working.
-        let fishInit = ["-C", "zsh -ic alias 2>/dev/null | while read -l a; eval alias $a 2>/dev/null; end"]
+        // fish doesn't read ~/.zprofile/~/.zshrc: pull zsh's login PATH (brew etc.) and aliases in so they keep working.
+        let fishInit = ["-C", "fish_add_path -gP (zsh -lc 'print -rl -- $path' 2>/dev/null); zsh -ic alias 2>/dev/null | while read -l a; eval alias $a 2>/dev/null; end"]
         let args = command.map { ["-l", "-i", "-c", "exec \($0)"] } ?? ["-l"] + (shell.hasSuffix("/fish") ? fishInit : [])
         term.startProcess(executable: shell, args: args, environment: env.map { "\($0)=\($1)" },
                           execName: "-" + (shell as NSString).lastPathComponent, currentDirectory: dir.path)
