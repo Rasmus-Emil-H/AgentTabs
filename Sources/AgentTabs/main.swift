@@ -32,7 +32,9 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
         let term = LocalProcessTerminalView(frame: tabs.contentRect)
         term.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         term.processDelegate = self
+        term.optionAsMetaKey = false // ⌥ composes chars (@ { } [ ] | on Nordic layouts), not Meta
         var env = ProcessInfo.processInfo.environment
+        if env["LANG"] == nil { env["LANG"] = "en_US.UTF-8" } // Finder-launched apps get no locale; fish needs UTF-8 for æøå
         env["TERM"] = "xterm-256color"
         env["COLORTERM"] = "truecolor"
         env.removeValue(forKey: "CLAUDECODE")
