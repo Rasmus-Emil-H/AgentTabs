@@ -3,6 +3,7 @@ import SwiftTerm
 
 final class Session: NSWindowController, NSWindowDelegate, NSTabViewDelegate, LocalProcessTerminalViewDelegate {
     let dir: URL
+    let command: String
     let tabs = NSTabView()
     var onClose: ((Session) -> Void)?
     // Terminal tabs prefer fish (autosuggestions, completions, history out of the box); agents run via $SHELL.
@@ -11,6 +12,7 @@ final class Session: NSWindowController, NSWindowDelegate, NSTabViewDelegate, Lo
 
     init(dir: URL, command: String) {
         self.dir = dir
+        self.command = command
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 720),
                               styleMask: [.titled, .closable, .miniaturizable, .resizable], backing: .buffered, defer: false)
         window.tabbingMode = .preferred
@@ -113,7 +115,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.activate(ignoringOtherApps: true)
         NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] in self?.handleDigit($0) == true ? nil : $0 }
         if !defaults.bool(forKey: "hideGuide") { showGuide(nil) }
-        newSession(nil)
+        // Reopen what was open at last ⌘Q; plain `claude` comes back as `claude --continue` to pick up the conversation.
+        for saved in defaults.array(forKey: "openSessions") as? [[String]] ?? [] where saved.count == 2 && FileManager.default.fileExists(atPath: saved[0]) {
+            open(dir: URL(fileURLWithPath: saved[0]), command: saved[1] == "claude" ? "claude --continue" : saved[1])
+        }
+        if sessions.isEmpty { newSession(nil) }
+    }
+
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !sessions.isEmpty else { return .terminateNow }
+        let alert = NSAlert()
+        alert.messageText = "Quit AgentTabs?"
+        alert.informativeText = "\(sessions.count) session(s) will be stopped. They reopen on next launch."
+        alert.addButton(withTitle: "Quit")
+        alert.addButton(withTitle: "Cancel")
+        return alert.runModal() == .alertFirstButtonReturn ? .terminateNow : .terminateCancel
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        defaults.set(sessions.map { [$0.dir.path, $0.command] }, forKey: "openSessions")
     }
 
     func handleDigit(_ event: NSEvent) -> Bool {
@@ -189,11 +209,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let command = field.stringValue.trimmingCharacters(in: .whitespaces).isEmpty ? "claude" : field.stringValue
         defaults.set(dir.path, forKey: "lastDir")
         defaults.set(command, forKey: "agentCommand")
+        open(dir: dir, command: command)
+    }
 
+    func open(dir: URL, command: String) {
         let session = Session(dir: dir, command: command)
         session.onClose = { [weak self] s in self?.sessions.removeAll { $0 === s } }
         sessions.append(session)
-        if let current = NSApp.keyWindow, let new = session.window {
+        if let current = NSApp.keyWindow ?? sessions.dropLast().last?.window, let new = session.window {
             current.addTabbedWindow(new, ordered: .above)
         }
         session.showWindow(nil)
