@@ -35,6 +35,7 @@ final class Session: NSWindowController, NSWindowDelegate, NSTabViewDelegate, Lo
         term.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         term.processDelegate = self
         term.optionAsMetaKey = false // ⌥ composes chars (@ { } [ ] | on Nordic layouts), not Meta
+        term.optionAsMetaKeyForFunctionalKeys = true // …but ⌥←/→ jump words and ⌥⌫ deletes one
         var env = ProcessInfo.processInfo.environment
         if env["LANG"] == nil { env["LANG"] = "en_US.UTF-8" } // Finder-launched apps get no locale; fish needs UTF-8 for æøå
         env["TERM"] = "xterm-256color"
