@@ -29,7 +29,7 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
     required init?(coder: NSCoder) { fatalError() }
 
     func addTerminal(label: String, command: String? = nil) {
-        let term = LocalProcessTerminalView(frame: tabs.contentRect)
+        let term = DropTerminalView(frame: tabs.contentRect)
         term.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
         term.processDelegate = self
         term.optionAsMetaKey = false // ⌥ composes chars (@ { } [ ] | on Nordic layouts), not Meta
@@ -84,6 +84,19 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
         (item.view as? LocalProcessTerminalView)?.process.terminate()
         tabs.removeTabViewItem(item)
         if tabs.numberOfTabViewItems == 0 { window?.close() }
+    }
+}
+
+// SwiftTerm ignores drops: paste dropped files' escaped paths like Terminal.app (Claude Code attaches image paths).
+final class DropTerminalView: LocalProcessTerminalView {
+    override init(frame: NSRect) { super.init(frame: frame); registerForDraggedTypes([.fileURL]) }
+    required init?(coder: NSCoder) { fatalError() }
+    override func draggingEntered(_ sender: NSDraggingInfo) -> NSDragOperation { .copy }
+    override func performDragOperation(_ sender: NSDraggingInfo) -> Bool {
+        guard let urls = sender.draggingPasteboard.readObjects(forClasses: [NSURL.self]) as? [URL], !urls.isEmpty else { return false }
+        let escaped = urls.map { $0.path.map { $0.isLetter || $0.isNumber || "_./-".contains($0) ? "\($0)" : "\\\($0)" }.joined() }
+        pasteText(escaped.joined(separator: " ") + " ")
+        return true
     }
 }
 
