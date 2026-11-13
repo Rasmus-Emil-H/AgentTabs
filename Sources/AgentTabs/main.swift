@@ -1,7 +1,7 @@
 import AppKit
 import SwiftTerm
 
-final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalViewDelegate {
+final class Session: NSWindowController, NSWindowDelegate, NSTabViewDelegate, LocalProcessTerminalViewDelegate {
     let dir: URL
     let tabs = NSTabView()
     var onClose: ((Session) -> Void)?
@@ -18,10 +18,10 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
         window.contentView = tabs
         super.init(window: window)
         window.delegate = self
+        tabs.delegate = self
         addTerminal(label: command, command: command)
         addShell()
         tabs.selectTabViewItem(at: 0)
-        window.makeFirstResponder(tabs.tabViewItem(at: 0).view)
     }
 
     func addShell() { addTerminal(label: (Session.terminalShell as NSString).lastPathComponent) }
@@ -49,7 +49,11 @@ final class Session: NSWindowController, NSWindowDelegate, LocalProcessTerminalV
         item.view = term
         tabs.addTabViewItem(item)
         tabs.selectTabViewItem(item)
-        window?.makeFirstResponder(term)
+    }
+
+    // Every tab switch (⌃1…9, ⌘⌥[ ], click, close) lands keyboard focus in the terminal.
+    func tabView(_ tabView: NSTabView, didSelect item: NSTabViewItem?) {
+        window?.makeFirstResponder(item?.view)
     }
 
     func item(for view: TerminalView) -> NSTabViewItem? {
