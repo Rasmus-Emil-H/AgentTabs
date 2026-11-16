@@ -105,6 +105,7 @@ final class DropTerminalView: LocalProcessTerminalView {
         pasteText(escaped.joined(separator: " ") + " ")
         return true
     }
+    @objc func undo(_ sender: Any?) { send(data: [0x1a][...]) }
 }
 
 final class AppDelegate: NSObject, NSApplicationDelegate {
@@ -262,6 +263,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item("Close Session", #selector(NSWindow.performClose(_:)), "w", [.command, .shift]),
         ])
         _ = submenu("Edit", [
+            item("Undo", #selector(DropTerminalView.undo(_:)), "z"),
             item("Copy", #selector(NSText.copy(_:)), "c"),
             item("Paste", #selector(NSText.paste(_:)), "v"),
             item("Select All", #selector(NSText.selectAll(_:)), "a"),
