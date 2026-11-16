@@ -9,6 +9,7 @@ final class Session: NSWindowController, NSWindowDelegate, NSTabViewDelegate, Lo
     // Terminal tabs prefer fish (autosuggestions, completions, history out of the box); agents run via $SHELL.
     static let terminalShell = ["/opt/homebrew/bin/fish", "/usr/local/bin/fish"].first { FileManager.default.isExecutableFile(atPath: $0) }
         ?? ProcessInfo.processInfo.environment["SHELL"] ?? "/bin/zsh"
+    static var fontSize: CGFloat = { let v = UserDefaults.standard.double(forKey: "fontSize"); return v > 0 ? v : 13 }()
 
     init(dir: URL, command: String) {
         self.dir = dir
@@ -32,7 +33,7 @@ final class Session: NSWindowController, NSWindowDelegate, NSTabViewDelegate, Lo
 
     func addTerminal(label: String, command: String? = nil) {
         let term = DropTerminalView(frame: tabs.contentRect)
-        term.font = .monospacedSystemFont(ofSize: 13, weight: .regular)
+        term.font = .monospacedSystemFont(ofSize: Session.fontSize, weight: .regular)
         term.processDelegate = self
         term.optionAsMetaKey = false // ⌥ composes chars (@ { } [ ] | on Nordic layouts), not Meta
         term.optionAsMetaKeyForFunctionalKeys = true // …but ⌥←/→ jump words and ⌥⌫ deletes one
@@ -171,6 +172,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         ⌥⌘[ / ]    Previous / next terminal
         ⌘W          Close current tab (last one closes the session)
         ⇧⌘W        Close whole session
+        ⌘+ / ⌘-    Bigger / smaller font (all terminals)
 
         The agent list is editable: type any command, e.g. "claude --resume".
         If ⌃1…9 does nothing, turn off "Switch to Desktop N" in System Settings › Keyboard › Shortcuts › Mission Control.
@@ -234,6 +236,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if let s = current, let item = s.tabs.selectedTabViewItem { s.close(item) }
     }
 
+    @objc func biggerFont(_ sender: Any?) { setFontSize(Session.fontSize + 1) }
+    @objc func smallerFont(_ sender: Any?) { setFontSize(Session.fontSize - 1) }
+
+    func setFontSize(_ size: CGFloat) {
+        Session.fontSize = min(max(size, 8), 36)
+        defaults.set(Session.fontSize, forKey: "fontSize")
+        for s in sessions { for i in s.tabs.tabViewItems { (i.view as? TerminalView)?.font = .monospacedSystemFont(ofSize: Session.fontSize, weight: .regular) } }
+    }
+
     @objc func nextInner(_ sender: Any?) { current?.tabs.selectNextTabViewItem(nil) }
     @objc func prevInner(_ sender: Any?) { current?.tabs.selectPreviousTabViewItem(nil) }
 
@@ -267,6 +278,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             item("Copy", #selector(NSText.copy(_:)), "c"),
             item("Paste", #selector(NSText.paste(_:)), "v"),
             item("Select All", #selector(NSText.selectAll(_:)), "a"),
+        ])
+        _ = submenu("View", [
+            item("Bigger", #selector(biggerFont(_:)), "+"),
+            item("Smaller", #selector(smallerFont(_:)), "-"),
         ])
         NSApp.windowsMenu = submenu("Window", [item("Minimize", #selector(NSWindow.performMiniaturize(_:)), "m")])
         NSApp.helpMenu = submenu("Help", [item("Shortcuts", #selector(showGuide(_:)), "/", [.command])])
